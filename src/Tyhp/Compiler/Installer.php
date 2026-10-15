@@ -17,11 +17,11 @@ namespace Tyhp\Compiler;
  */
 final class Installer
 {
-    public const string RELEASE_REPO = 'tyhpproject/tyhp';
-    public const string CHECKSUMS_ASSET = 'checksums.txt';
-    public const string USER_AGENT = 'tyhp-compiler-package';
-    public const string NATIVE_DIR = 'native';
-    public const string VERSION_STAMP = 'version';
+    public const RELEASE_REPO = 'tyhpproject/tyhp';
+    public const CHECKSUMS_ASSET = 'checksums.txt';
+    public const USER_AGENT = 'tyhp-compiler-package';
+    public const NATIVE_DIR = 'native';
+    public const VERSION_STAMP = 'version';
     private readonly \Tyhp\Compiler\HttpClient $http;
     private readonly \Tyhp\Compiler\Platform $platform;
     public function __construct(private readonly string $packageRoot, ?\Tyhp\Compiler\HttpClient $http = null, ?\Tyhp\Compiler\Platform $platform = null, private readonly ?bool $hasDotNet9 = null, private readonly ?string $packageVersion = null)
@@ -31,7 +31,7 @@ final class Installer
     }
     public static function fromPackage(): self
     {
-        return new self(\dirname(__DIR__));
+        return new self(\dirname(__DIR__, 3));
     }
     public static function normalizeReleaseTag(string $value): string
     {
@@ -193,7 +193,14 @@ final class Installer
     private function fetchReleaseByTag(string $tag, array $headers): array
     {
         $url = ((('https://api.github.com/repos/' . self::RELEASE_REPO) . '/releases/tags/') . \rawurlencode($tag));
-        $body = $this->http->get($url, $headers);
+        try {
+            $body = $this->http->get($url, $headers);
+        } catch (HttpStatusException $e) {
+            if ($e->status === 404) {
+                throw $this->releaseNotFound($tag, $e->body);
+            }
+            throw $e;
+        }
         try {
             $release = \Tyhp\Generic::bind(\Tyhp\Json::decode(...), \Tyhp\Type::struct('Tyhp\\Compiler\\GitHubRelease', ['tag_name' => \Tyhp\Type::string(), 'assets' => \Tyhp\Type::generic('array', new \Tyhp\NamedType('TValue', \Tyhp\Type::struct('Tyhp\\Compiler\\GitHubReleaseAsset', ['name' => \Tyhp\Type::string(), 'browser_download_url' => \Tyhp\Type::string()], ['name', 'browser_download_url'])))], ['tag_name', 'assets']))($body);
             if ($release['tag_name'] === '') {

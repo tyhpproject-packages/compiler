@@ -59,8 +59,7 @@ final class NativeHttpClient implements HttpClient
         }
         if (($status < 200) || ($status >= 300)) {
             $this->deleteIfExists($destination);
-            $snippet = (\is_string($result) ? \substr($result, 0, 200) : '');
-            throw new \RuntimeException("HTTP $status from $url" . (($snippet !== '') ? ": $snippet" : '.'));
+            throw new HttpStatusException($status, $url, \is_string($result) ? $result : '');
         }
         return \is_string($result) ? $result : '';
     }
